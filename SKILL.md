@@ -9,7 +9,13 @@ description: Use when building a CRUD web app from a YAML entity schema, scaffol
 - Hybrid pattern-book + schema-driven workflow
 - Input: YAML entity schemas defining DB structure + UI hints
 - Output: Supabase migrations, TypeScript/Zod types, routes, React components
-- Tech stack: React + TypeScript + Vite, Supabase, TanStack React Query v5, React Hook Form + Zod, Tailwind + shadcn/ui
+- Tech stack: TanStack Start (React + TypeScript + Vite), Supabase, TanStack React Query v5, React Hook Form + Zod, Tailwind + shadcn/ui
+
+## Router & Framework
+
+- **Default: TanStack Start** — file-based routing, server functions with middleware, SSR via Nitro. This is the Lovable default since May 2026.
+- **Legacy: React Router v6/v7** — aeltere Lovable-Projekte (vor Mai 2026) nutzen noch React Router mit Client-side Routing. Die Patterns in diesem Skill sind primaer fuer TanStack Start geschrieben. Bei Legacy-Projekten: Route-Definitionen und Navigation-Hooks anpassen (z.B. `useRouter` → `useNavigate`, file-based routes → manuelle Route-Config). Die Kernlogik (React Query, Zod, Supabase, Komponenten) bleibt identisch.
+- **Erkennung:** TanStack Start hat `@tanstack/react-start` in package.json. Legacy-Projekte haben `react-router-dom`.
 
 ## When to Use
 - Building a new CRUD app or adding entities to an existing one
