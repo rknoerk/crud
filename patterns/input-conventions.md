@@ -2,6 +2,24 @@
 
 Rules for form inputs: visual masks, smart parsing, and placeholder policy.
 
+## Global: Hide Number Spinners
+
+Browsers (especially Safari) add increment/decrement spinners to `<input type="number">`. Remove them globally in `styles.css` / `globals.css`:
+
+```css
+/* Remove number input spinners globally */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+```
+
+Alternatively, use `<input type="text" inputMode="numeric">` for number fields — this shows the numeric keyboard on mobile without triggering browser-native number behavior (spinners, scroll-to-change). This is the preferred approach for currency and formatted number fields (see European Number Input below).
+
 ## Placeholder Policy
 
 **No text placeholders in text inputs.** They look like real values and are redundant when a label is present. "Vorname" as label does not need "Max" as placeholder.
