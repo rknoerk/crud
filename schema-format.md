@@ -17,7 +17,7 @@ This file defines the YAML schema format for entity definitions used to generate
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `name` | string | *required* | Field name, English, snake_case |
-| `type` | string | *required* | One of: `text`, `textarea`, `enum`, `number`, `date`, `time`, `datetime`, `relation`, `boolean` |
+| `type` | string | *required* | One of: `text`, `textarea`, `enum`, `number`, `date`, `time`, `datetime`, `relation`, `boolean`, `image`, `images` |
 | `label` | string | *required* | German UI label |
 | `required` | boolean | `false` | Field is required |
 | `default` | any | — | Default value |
@@ -31,6 +31,7 @@ This file defines the YAML schema format for entity definitions used to generate
 
 - `values` (array) — required for `enum`, defines allowed values
 - `target` (string) — required for `relation`, references the target table name
+- `focal_point` (boolean) — for `image`/`images`, adds focal_x/focal_y columns (default false). See `patterns/images.md`
 
 ## Type Mapping
 
@@ -45,6 +46,8 @@ This file defines the YAML schema format for entity definitions used to generate
 | datetime | timestamptz | Date mask + time mask | z.string().datetime() |
 | relation | uuid REFERENCES | Combobox with search | z.string().uuid() |
 | boolean | boolean | Toggle/Switch | z.boolean() |
+| image | text (storage path) | Dropzone + preview | z.string() |
+| images | join table | Sortable grid + dropzone | (via join table) |
 
 ## Auto-Generated Fields
 
