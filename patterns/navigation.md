@@ -4,12 +4,12 @@
 
 ```
 /entity                              -> List view
-/entity/:id                          -> Detail view (read-only)
-/entity/:id/edit                     -> Form view (edit)
+/entity/:id                          -> Form view (edit)
 /entity/:id/sub-entity               -> Sub-list (hierarchical 1:n)
-/entity/:id/sub-entity/:subId        -> Sub-detail
-/entity/:id/sub-entity/:subId/edit   -> Sub-edit
+/entity/:id/sub-entity/:subId        -> Sub-form (edit)
 ```
+
+**No separate detail/read-only view.** Clicking a row in the list opens the edit form directly. This eliminates an unnecessary click and a second view to maintain per entity.
 
 Route definition example (React Router v6):
 
@@ -28,14 +28,12 @@ export const router = createBrowserRouter([
         element: <ProjekteLayout />,  // desktop: master-detail via <Outlet />
         children: [
           { index: true, element: <ProjektList /> },
-          { path: ":id", element: <ProjektDetail /> },
-          { path: ":id/edit", element: <ProjektForm /> },
+          { path: ":id", element: <ProjektForm /> },
           {
             path: ":id/szenen",
             children: [
               { index: true, element: <SzeneList /> },
-              { path: ":szeneId", element: <SzeneDetail /> },
-              { path: ":szeneId/edit", element: <SzeneForm /> },
+              { path: ":szeneId", element: <SzeneForm /> },
             ],
           },
         ],

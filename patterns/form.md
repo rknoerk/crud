@@ -5,18 +5,25 @@ Form view for creating and editing entity records. Uses React Hook Form + Zod va
 ## Layout
 
 ```
-Header: <- Abbrechen              [Speichern]
+Header: <- Abbrechen          [Loeschen] [Speichern]
 Fields (in schema order):
   Label *
   [Input/Select/Datepicker/...]
 
   Label
   [Input/Select/Datepicker/...]
+
+Sub-lists (if 1:n relations exist):
+  Sub-Entity (count)              [+ Neu]
+  Entry 1
+  Entry 2
 ```
 
 - Header is sticky at top
 - "Abbrechen" navigates back (with unsaved changes guard if dirty)
 - "Speichern" submits the form, disabled while submitting
+- "Loeschen" (destructive button, red/outline) — only shown for existing records, not for new ones. Opens ConfirmDialog: "Eintrag loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden." On confirm: hard delete via Supabase, invalidate queries, toast, navigate back to list.
+- Sub-lists for 1:n relations appear below the form fields (read-only list with count, "+ Neu" button, "Alle anzeigen" link)
 - Required fields show `*` after the label
 - Fields render in schema order, full width, stacked vertically
 - Validation errors appear inline below each field in red

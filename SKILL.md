@@ -1,6 +1,6 @@
 ---
 name: crud
-description: Use when building a CRUD web app from a YAML entity schema, scaffolding Supabase tables, React components, routes, and forms for list/detail/edit views.
+description: Use when building a CRUD web app from a YAML entity schema, scaffolding Supabase tables, React components, routes, and forms for list/edit views.
 ---
 
 # CRUD Generator
@@ -29,16 +29,16 @@ description: Use when building a CRUD web app from a YAML entity schema, scaffol
 1. **Schema lesen & validieren** — Parse YAML, validate required fields, resolve relations. Report errors early. → See `schema-format.md`
 2. **Supabase-Migration generieren** — CREATE TABLE with correct types, auto id/timestamps, indexes. → See `patterns/migration.md`
 3. **TypeScript-Typen generieren** — Zod schema from YAML, infer TS interface. One file per entity in `schemas/`. → See `patterns/form.md` (Zod section)
-4. **Routes anlegen** — List, detail, edit per entity. Sub-routes for hierarchical relations. Responsive master-detail. → See `patterns/navigation.md`
-5. **Komponenten generieren** — EntityList, EntityDetail, EntityForm + React Query hooks. → See `patterns/list.md`, `patterns/detail.md`, `patterns/form.md`
+4. **Routes anlegen** — List + edit per entity. Sub-routes for hierarchical relations. Responsive master-detail. → See `patterns/navigation.md`
+5. **Komponenten generieren** — EntityList, EntityForm + React Query hooks. → See `patterns/list.md`, `patterns/form.md`
 6. **Qualitaets-Check** — Run through this checklist before presenting to user:
-   - [ ] All routes reachable (list, detail, edit per entity)
+   - [ ] All routes reachable (list + edit per entity)
    - [ ] Zod schema matches DB schema (types, required, enums)
    - [ ] All `list: true` fields appear in DataTable columns
    - [ ] All `sortable` fields have sort toggle + DB index
    - [ ] All `filterable` fields have filter UI + DB index
    - [ ] All `searchable` fields included in search query
-   - [ ] Relations render as links in detail, combobox in form
+   - [ ] Relations render as links in list, combobox in form
    - [ ] European formats applied (DD.MM.YYYY, dot thousands, comma decimal)
    - [ ] Design system tokens used, no hardcoded colors/sizes
    - [ ] Empty states and error toasts present
