@@ -225,3 +225,10 @@ Key: `pb-16 md:pb-0` on main gives space for bottom tabs on mobile, removed on t
 - Sidebar: sticky, full height, scrollable nav area
 - Max 5 bottom tabs including "Mehr" — if project has <=5 entities, no "Mehr" needed
 - Hamburger menu is NOT used as primary navigation. Only acceptable for authenticated user menu (profile, logout) if needed.
+
+---
+
+## See also
+
+- `patterns/navigation.md` — routing, breadcrumbs, URL params, guards
+- `design-system.md` — CSS variable tokens used by all navigation components

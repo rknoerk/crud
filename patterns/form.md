@@ -397,70 +397,85 @@ export function useCreateEntity({ table, defaults = {} }: UseCreateEntityOptions
 
 ### `useDeleteEntity`
 
-Defined in `patterns/detail.md`. Uses `supabase.from(table).delete().eq('id', id)` with confirmation dialog, query invalidation, toast, and navigation to list.
+Delete with confirmation flow, query invalidation, and navigation.
 
-## Unsaved Changes Guard
+```typescript
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
-Blocks in-app navigation (React Router `useBlocker`) and browser close/refresh (`beforeunload`). Shows an AlertDialog when the form has unsaved changes.
-
-```tsx
-import { useEffect } from 'react';
-import { useBlocker } from 'react-router-dom';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-
-interface UnsavedChangesGuardProps {
-  isDirty: boolean;
+interface UseDeleteEntityOptions {
+  table: string;
+  id: string;
+  listPath: string;          // e.g. '/projekte'
 }
 
-export function UnsavedChangesGuard({ isDirty }: UnsavedChangesGuardProps) {
-  const blocker = useBlocker(isDirty);
+export function useDeleteEntity({ table, id, listPath }: UseDeleteEntityOptions) {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  // Browser close / refresh
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [table] });
+      toast.success('Eintrag geloescht');
+      const backPath = location.state?.from ?? listPath;
+      navigate(backPath, { replace: true });
+    },
+    onError: (error: Error) => {
+      toast.error(`Fehler beim Loeschen: ${error.message}`);
+    },
+  });
 
-  if (blocker.state !== 'blocked') return null;
+  const requestDelete = () => setShowConfirm(true);
+  const cancelDelete = () => setShowConfirm(false);
+  const confirmDelete = () => {
+    setShowConfirm(false);
+    mutation.mutate();
+  };
 
-  return (
-    <AlertDialog open>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Ungespeicherte Aenderungen</AlertDialogTitle>
-          <AlertDialogDescription>
-            Es gibt ungespeicherte Aenderungen. Moechtest du die Seite wirklich verlassen?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => blocker.reset()}>
-            Abbrechen
-          </AlertDialogCancel>
-          <AlertDialogAction onClick={() => blocker.proceed()}>
-            Verwerfen
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
+  return { requestDelete, cancelDelete, confirmDelete, showConfirm, isDeleting: mutation.isPending };
 }
 ```
 
-Usage: wrap form with `<UnsavedChangesGuard isDirty={formState.isDirty} />`.
+Usage with `ConfirmDialog` (placed at the bottom of the form, only for existing records):
+
+```tsx
+const { requestDelete, cancelDelete, confirmDelete, showConfirm, isDeleting } = useDeleteEntity({
+  table: 'projekte',
+  id: params.id,
+  listPath: '/projekte',
+});
+
+// In the form footer (below fields and sub-lists), only for existing records:
+{id && (
+  <Button type="button" variant="outline" className="text-destructive" onClick={requestDelete}>
+    Loeschen
+  </Button>
+)}
+
+<ConfirmDialog
+  open={showConfirm}
+  onCancel={cancelDelete}
+  onConfirm={confirmDelete}
+  title="Eintrag loeschen"
+  description="Eintrag loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden."
+  confirmLabel="Loeschen"
+  loading={isDeleting}
+  variant="destructive"
+/>
+```
+
+## Unsaved Changes Guard
+
+See `patterns/navigation.md` for the `UnsavedChangesGuard` component.
 
 ## European Input Formats
 
@@ -759,6 +774,91 @@ export function RelationCombobox({
 }
 ```
 
+## Sub-Lists (1:n Relations below the Form)
+
+When an entity has 1:n relations (other entities with a foreign key pointing to this entity), render them as read-only sub-lists below the form fields. This replaces the former detail view's sub-list section.
+
+### `SubListDef` Interface
+
+```typescript
+interface SubListDef {
+  table: string;
+  fk: string;                 // foreign key column pointing to parent
+  select: string;             // columns for preview rows
+  label: string;              // section header label (plural)
+  fields: FieldDef[];         // field definitions for rendering preview columns
+  limit?: number;             // max preview rows, default 5
+}
+```
+
+### `SubList` Component
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+
+interface SubListProps {
+  parentTable: string;
+  parentId: string;
+  def: SubListDef;
+}
+
+export function SubList({ parentTable, parentId, def }: SubListProps) {
+  const navigate = useNavigate();
+
+  const { data, isLoading } = useQuery({
+    queryKey: [def.table, { [def.fk]: parentId }],
+    queryFn: async () => {
+      const [countResult, rowsResult] = await Promise.all([
+        supabase.from(def.table).select('*', { count: 'exact', head: true }).eq(def.fk, parentId),
+        supabase.from(def.table).select(def.select).eq(def.fk, parentId).limit(def.limit ?? 5),
+      ]);
+      if (countResult.error) throw countResult.error;
+      if (rowsResult.error) throw rowsResult.error;
+      return { count: countResult.count ?? 0, rows: rowsResult.data };
+    },
+    enabled: !!parentId,
+  });
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-medium">
+          {def.label} {data ? `(${data.count})` : ''}
+        </h2>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(`/${def.table}/new`, { state: { [def.fk]: parentId } })}
+        >
+          + Neu
+        </Button>
+      </div>
+      <Separator />
+      {isLoading && <Skeleton className="h-20 w-full" />}
+      {data?.rows.map((row) => (
+        <SubListRow key={row.id} row={row} table={def.table} fields={def.fields} />
+      ))}
+      {(data?.count ?? 0) > (def.limit ?? 5) && (
+        <Link
+          to={`/${parentTable}/${parentId}/${def.table}`}
+          className="text-sm text-primary hover:underline"
+        >
+          Alle anzeigen
+        </Link>
+      )}
+    </section>
+  );
+}
+```
+
+Place sub-lists below the form fields and above the delete button.
+
 ## Full Page Structure (Projekt Example)
 
 ```tsx
@@ -827,3 +927,11 @@ export function ProjektForm() {
   );
 }
 ```
+
+---
+
+## See also
+
+- `patterns/navigation.md` — UnsavedChangesGuard, useNavigateBack
+- `patterns/formatting.md` — FieldDisplay for read-only relation display, formatValue
+- `patterns/input-conventions.md` — masks, parsing, field sizing

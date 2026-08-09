@@ -26,11 +26,11 @@ description: Use when building a CRUD web app from a YAML entity schema, scaffol
 
 6 steps, halt between each to show user and get feedback:
 
-1. **Schema lesen & validieren** — Parse YAML, validate required fields, resolve relations. Report errors early. → See `schema-format.md`
-2. **Supabase-Migration generieren** — CREATE TABLE with correct types, auto id/timestamps, indexes. → See `patterns/migration.md`
-3. **TypeScript-Typen generieren** — Zod schema from YAML, infer TS interface. One file per entity in `schemas/`. → See `patterns/form.md` (Zod section)
-4. **Routes anlegen** — List + edit per entity. Sub-routes for hierarchical relations. Responsive master-detail. → See `patterns/navigation.md`
-5. **Komponenten generieren** — EntityList, EntityForm + React Query hooks. → See `patterns/list.md`, `patterns/form.md`
+1. **Schema lesen & validieren** → See `schema-format.md`
+2. **Supabase-Migration generieren** → See `patterns/migration.md`
+3. **TypeScript-Typen generieren** → See `patterns/form.md` (Zod section)
+4. **Routes anlegen** → See `patterns/navigation.md` (routing, breadcrumbs, URL params, guards), `patterns/navigation-layout.md` (sidebar, tabs, AppShell)
+5. **Komponenten generieren** → See `patterns/list.md`, `patterns/form.md`, `patterns/formatting.md` (value display), `patterns/input-conventions.md` (masks, parsing, field sizing)
 6. **Qualitaets-Check** — Run through this checklist before presenting to user:
    - [ ] All routes reachable (list + edit per entity)
    - [ ] Zod schema matches DB schema (types, required, enums)

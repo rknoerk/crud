@@ -55,8 +55,8 @@ Follows the Tailwind spacing scale.
 | Pattern | Components | Key Tokens Used |
 |---------|-----------|-----------------|
 | Liste | DataTable, SearchInput, FilterSelect, Pagination | `--color-border`, `--color-muted`, `--text-sm` |
-| Detail | FieldDisplay, RelationLink, SubList | `--color-muted-foreground`, `--text-base` |
-| Formular | FormField, FormSelect, FormCombobox, FormDatepicker, FormToggle | `--color-input`, `--color-ring`, `--color-destructive` |
+| Formatting | FieldDisplay, RelationLink | `--color-muted-foreground`, `--text-base` |
+| Formular | FormField, FormSelect, FormCombobox, FormDatepicker, FormToggle, SubList | `--color-input`, `--color-ring`, `--color-destructive` |
 | Layout | AppShell, MasterDetail, PageHeader, Breadcrumbs | `--color-background`, `--color-card`, `--shadow-sm` |
 | Feedback | Toast (Sonner), ConfirmDialog, EmptyState | `--color-primary`, `--color-destructive` |
 | Navigation | Sidebar, MobileNav | `--color-accent`, `--color-border` |
@@ -119,3 +119,11 @@ Define all variables in `app/globals.css` under `:root` (light) and `.dark` (dar
 ```
 
 Spacing and typography scale tokens use Tailwind defaults and only need overriding if the project deviates from standard Tailwind values.
+
+---
+
+## See also
+
+- `patterns/navigation-layout.md` — AppShell, sidebar, bottom tabs (consume layout tokens)
+- `patterns/list.md` — list components (consume table/border tokens)
+- `patterns/form.md` — form components (consume input/ring tokens)

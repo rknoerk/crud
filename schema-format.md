@@ -106,3 +106,11 @@ fields:
 
 default_sort: { field: startdatum, direction: desc }
 ```
+
+---
+
+## See also
+
+- `patterns/migration.md` — SQL generation from schema definitions
+- `patterns/form.md` — Zod schema generation from field types
+- `patterns/input-conventions.md` — time/datetime input handling

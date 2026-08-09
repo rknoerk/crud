@@ -353,3 +353,11 @@ All smart parsing runs on blur. During active typing, show raw input. On blur:
 1. Run parser (parseTimeInput / parseDateInput)
 2. If valid → replace raw input with formatted value, update form state
 3. If invalid → show inline validation error, keep raw input so user can fix it
+
+---
+
+## See also
+
+- `patterns/formatting.md` — output-side formatting (display values)
+- `patterns/form.md` — form widgets that consume these input conventions
+- `schema-format.md` — field type definitions (time, datetime)

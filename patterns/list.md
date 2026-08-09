@@ -35,62 +35,7 @@ Format:
 - All other params are filters (key = field name, value = filter value)
 - On change: update URL search params, React Query refetches automatically via query key
 
-### `useUrlParams` Hook
-
-```typescript
-import { useSearchParams } from 'react-router-dom'
-
-function useUrlParams() {
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const filters = Object.fromEntries(
-    [...searchParams.entries()].filter(([k]) => !['sort', 'q'].includes(k))
-  )
-
-  const sort = parseSort(searchParams.get('sort'))
-  const search = searchParams.get('q') ?? ''
-
-  const setFilter = (key: string, value: string | null) => {
-    setSearchParams(prev => {
-      if (value) prev.set(key, value)
-      else prev.delete(key)
-      return prev
-    })
-  }
-
-  const setSort = (field: string) => {
-    setSearchParams(prev => {
-      const current = parseSort(prev.get('sort'))
-      if (current?.field === field) {
-        // Toggle direction, remove on third click
-        if (current.direction === 'asc') prev.set('sort', `-${field}`)
-        else prev.delete('sort')
-      } else {
-        prev.set('sort', field) // Default to ascending
-      }
-      return prev
-    })
-  }
-
-  const setSearch = (q: string) => {
-    setSearchParams(prev => {
-      if (q) prev.set('q', q)
-      else prev.delete('q')
-      return prev
-    })
-  }
-
-  return { filters, sort, search, setFilter, setSort, setSearch }
-}
-
-// "-startdatum" -> { field: "startdatum", direction: "desc" }
-// "startdatum"  -> { field: "startdatum", direction: "asc" }
-function parseSort(value: string | null) {
-  if (!value) return null
-  if (value.startsWith('-')) return { field: value.slice(1), direction: 'desc' as const }
-  return { field: value, direction: 'asc' as const }
-}
-```
+See `patterns/navigation.md` for the `useUrlParams` hook.
 
 ## Entity List Hook
 
@@ -162,35 +107,9 @@ function useProjektePaginated() {
 - **Desktop (master-detail layout):** List stays mounted in the left panel while detail renders in the outlet. No special handling needed.
 - **Mobile (full-screen navigation):** Save and restore scroll position via `sessionStorage`.
 
-```typescript
-const SCROLL_KEY_PREFIX = 'scroll:'
+See `patterns/navigation.md` for the `useScrollRestore` hook.
 
-function useScrollRestore(routePath: string) {
-  const listRef = useRef<HTMLDivElement>(null)
-
-  // Restore scroll position after data loads
-  useEffect(() => {
-    const saved = sessionStorage.getItem(`${SCROLL_KEY_PREFIX}${routePath}`)
-    if (saved && listRef.current) {
-      listRef.current.scrollTop = Number(saved)
-    }
-  }, [routePath])
-
-  // Save scroll position before navigating away
-  const saveScroll = useCallback(() => {
-    if (listRef.current) {
-      sessionStorage.setItem(
-        `${SCROLL_KEY_PREFIX}${routePath}`,
-        String(listRef.current.scrollTop)
-      )
-    }
-  }, [routePath])
-
-  return { listRef, saveScroll }
-}
-```
-
-Call `saveScroll()` on row click before navigating to detail.
+Call `saveScroll()` on row click before navigating to edit.
 
 ## Empty State
 
@@ -324,3 +243,11 @@ const columns: ColumnDef<Projekt>[] = [
     cell: ({ value }) => formatDate(value) },            // "15.03.2026"
 ]
 ```
+
+---
+
+## See also
+
+- `patterns/navigation.md` — useUrlParams, useScrollRestore
+- `patterns/formatting.md` — formatValue for column rendering
+- `patterns/navigation-layout.md` — AppShell, sidebar, bottom tabs

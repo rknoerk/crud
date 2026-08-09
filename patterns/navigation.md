@@ -583,3 +583,11 @@ export function ProjektForm() {
   );
 }
 ```
+
+---
+
+## See also
+
+- `patterns/navigation-layout.md` — AppShell, sidebar, bottom tabs
+- `patterns/list.md` — list view (uses useUrlParams, useScrollRestore)
+- `patterns/form.md` — form view (uses UnsavedChangesGuard, useNavigateBack)

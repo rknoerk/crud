@@ -132,3 +132,9 @@ CREATE INDEX idx_projekte_startdatum ON projekte(startdatum);
 | budget | yes | — | — | yes |
 | startdatum | yes | — | — | yes |
 | notizen | — | — | — | no |
+
+---
+
+## See also
+
+- `schema-format.md` — YAML field definitions that drive migration generation
