@@ -17,7 +17,7 @@ This file defines the YAML schema format for entity definitions used to generate
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `name` | string | *required* | Field name, English, snake_case |
-| `type` | string | *required* | One of: `text`, `textarea`, `enum`, `number`, `date`, `relation`, `boolean` |
+| `type` | string | *required* | One of: `text`, `textarea`, `enum`, `number`, `date`, `time`, `datetime`, `relation`, `boolean` |
 | `label` | string | *required* | German UI label |
 | `required` | boolean | `false` | Field is required |
 | `default` | any | — | Default value |
@@ -40,7 +40,9 @@ This file defines the YAML schema format for entity definitions used to generate
 | textarea | text | Textarea | z.string() |
 | enum | Postgres ENUM | Select | z.enum([...]) |
 | number | numeric | Number Input | z.number() |
-| date | date | Datepicker | z.string().date() |
+| date | date | Masked date input (DD.MM.YYYY) | z.string().date() |
+| time | time | Masked time input (HH:MM) | z.string().regex(/^\d{2}:\d{2}$/) |
+| datetime | timestamptz | Date mask + time mask | z.string().datetime() |
 | relation | uuid REFERENCES | Combobox with search | z.string().uuid() |
 | boolean | boolean | Toggle/Switch | z.boolean() |
 
