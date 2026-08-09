@@ -16,6 +16,50 @@ Rules for form inputs: visual masks, smart parsing, and placeholder policy.
 | Time | Visual mask `[  :  ]` | Shows expected structure |
 | Toggle/Switch | None | Visual state is self-evident |
 
+## Field Sizing
+
+Fields must never be wider than the maximum possible input. Oversized fields waste space and obscure what input is expected.
+
+| Type | Max Content | Width |
+|------|-------------|-------|
+| time | `HH:MM` (5 chars) | `5ch` + padding |
+| date | `DD.MM.YYYY` (10 chars) | `10ch` + padding |
+| datetime | `DD.MM.YYYY HH:MM` (16 chars) | `16ch` + padding |
+| number | varies | set `max-width` based on expected range |
+| number (currency) | `999.999,99 €` (~13 chars) | `13ch` + padding |
+| enum (select) | longest option | auto (fits content) |
+| text | free text | `100%` (full width, default) |
+| textarea | free text | `100%` (full width) |
+
+Use `ch` units for structured fields — `1ch` equals the width of one character in the current font. Add ~`1.5rem` padding (left + right) for comfortable spacing.
+
+```css
+.input-time     { max-width: calc(5ch + 1.5rem); }
+.input-date     { max-width: calc(10ch + 1.5rem); }
+.input-datetime { max-width: calc(16ch + 1.5rem); }
+.input-currency { max-width: calc(13ch + 1.5rem); }
+```
+
+## Monospace for Structured Data
+
+Structured inputs (time, date, currency, numbers) use a monospace font. This ensures:
+- Digits align vertically in lists and forms
+- Separators (`:`, `.`, `,`) stay at fixed positions
+- The mask structure is visually stable during typing
+
+```css
+.input-structured {
+  font-family: var(--font-mono, ui-monospace, 'SF Mono', 'Cascadia Code', monospace);
+  font-variant-numeric: tabular-nums;
+}
+```
+
+Apply `.input-structured` to: `time`, `date`, `datetime`, `number`, `currency` fields.
+
+Do NOT apply to: `text`, `textarea`, `enum` (select), `relation` (combobox), `boolean` (toggle). These use the regular body font (`--font-body`).
+
+The design system token `--font-mono` should be defined per project. If not set, the fallback chain provides sensible defaults.
+
 ## Visual Masks
 
 Structured inputs (date, time) use visual mask patterns instead of text placeholders. The mask shows the expected structure with visible separators rendered as part of the input UI, not as placeholder text.
@@ -41,6 +85,122 @@ Display: segments with colon as fixed separator.
 ```
 
 Same approach — colon always visible.
+
+## Masked Input Behavior
+
+Masked inputs (date, time) use a segment-based approach: each part (HH, MM, DD, MM, YYYY) is a separate logical segment. This solves the backspace/delete problem.
+
+### Recommended Implementation: Segment-Based Input
+
+Instead of a single `<input>` with a mask library, use multiple small inputs (one per segment) with fixed separators rendered between them. This gives native cursor and selection behavior per segment.
+
+```
+Time:     [ HH ] : [ MM ]
+Date:     [ DD ] . [ MM ] . [ YYYY ]
+Datetime: [ DD ] . [ MM ] . [ YYYY ]  [ HH ] : [ MM ]
+```
+
+Each segment is its own `<input>`:
+- `type="text"`, `inputMode="numeric"` (shows numeric keyboard on mobile)
+- `maxLength` per segment (2 for HH/MM/DD/MM, 4 for YYYY)
+- Monospace font, right-aligned text within segment
+
+### Keyboard Behavior
+
+| Key | Behavior |
+|-----|----------|
+| Digit | Enters digit in current segment. When segment is full (maxLength reached), auto-advance to next segment. |
+| Backspace | Deletes last digit in current segment. If segment is empty, move focus to previous segment. |
+| Delete | Clears current segment. |
+| Tab / Arrow Right | Move to next segment. |
+| Shift+Tab / Arrow Left | Move to previous segment. |
+| `:` or `.` (separator key) | Move to next segment (acts like Tab). Allows natural typing of `14:30` or `1.2.26`. |
+
+### Auto-Advance Rules
+
+- When a segment reaches `maxLength`, focus moves to the next segment automatically.
+- Exception: If the first digit makes only one valid completion possible, do NOT auto-advance yet. E.g. in hours: typing `2` could be `20`, `21`, `22`, `23` — wait for second digit. But typing `3` can only be `03` — zero-pad and auto-advance.
+
+### Auto-Pad on Blur
+
+When a segment loses focus with a single digit:
+- Hours: `9` → `09`
+- Minutes: `5` → `05`
+- Day: `1` → `01`
+- Month: `2` → `02`
+
+### Select-All on Focus
+
+When a segment receives focus, select all content in that segment. This way typing immediately replaces the old value — no need to manually delete first.
+
+### Example Component Structure
+
+```tsx
+function MaskedTimeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [hours, setHours] = useState(value?.slice(0, 2) ?? '')
+  const [minutes, setMinutes] = useState(value?.slice(3, 5) ?? '')
+  const minutesRef = useRef<HTMLInputElement>(null)
+  const hoursRef = useRef<HTMLInputElement>(null)
+
+  const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value.replace(/\D/g, '').slice(0, 2)
+    setHours(v)
+    if (v.length === 2) minutesRef.current?.focus()
+  }
+
+  const handleHoursKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === ':') {
+      e.preventDefault()
+      minutesRef.current?.focus()
+    }
+  }
+
+  const handleMinutesKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && minutes === '') {
+      e.preventDefault()
+      hoursRef.current?.focus()
+    }
+  }
+
+  const handleBlur = () => {
+    const h = hours.padStart(hours.length > 0 ? 2 : 0, '0')
+    const m = minutes.padStart(minutes.length > 0 ? 2 : 0, '0')
+    setHours(h)
+    setMinutes(m)
+    if (h && m) onChange(`${h}:${m}`)
+  }
+
+  return (
+    <div className="inline-flex items-center gap-0.5 input-structured">
+      <input
+        ref={hoursRef}
+        value={hours}
+        onChange={handleHoursChange}
+        onKeyDown={handleHoursKeyDown}
+        onBlur={handleBlur}
+        onFocus={e => e.target.select()}
+        inputMode="numeric"
+        maxLength={2}
+        className="w-[2ch] text-center bg-transparent outline-none"
+      />
+      <span className="text-[var(--color-muted-foreground)]">:</span>
+      <input
+        ref={minutesRef}
+        value={minutes}
+        onChange={e => setMinutes(e.target.value.replace(/\D/g, '').slice(0, 2))}
+        onKeyDown={handleMinutesKeyDown}
+        onBlur={handleBlur}
+        onFocus={e => e.target.select()}
+        inputMode="numeric"
+        maxLength={2}
+        className="w-[2ch] text-center bg-transparent outline-none"
+      />
+    </div>
+  )
+}
+```
+
+The outer container gets the border, sizing (`max-width: calc(5ch + 1.5rem)`), and `.input-structured` class. The inner inputs are borderless and transparent.
 
 ## Smart Parsing
 
