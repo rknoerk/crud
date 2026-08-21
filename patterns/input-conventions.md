@@ -139,13 +139,17 @@ Each segment is its own `<input>`:
 - When a segment reaches `maxLength`, focus moves to the next segment automatically.
 - Exception: If the first digit makes only one valid completion possible, do NOT auto-advance yet. E.g. in hours: typing `2` could be `20`, `21`, `22`, `23` — wait for second digit. But typing `3` can only be `03` — zero-pad and auto-advance.
 
-### Auto-Pad on Blur
+### Auto-Pad on Blur (Left-Pad)
 
-When a segment loses focus with a single digit:
+When a segment loses focus with a single digit, **left-pad with zero** (prepend):
 - Hours: `9` → `09`
 - Minutes: `5` → `05`
 - Day: `1` → `01`
 - Month: `2` → `02`
+
+This is the ISO 8601 / HTML5 standard. Do NOT right-pad (e.g. `3` → `30`), even though `10:30` is more common than `10:03` as a work time. Right-padding has no established convention and breaks user expectations in non-work contexts.
+
+To enter `10:30`, the user types 4 digits: `1`, `0` (auto-advance to MM), `3`, `0`. The select-all-on-focus behavior (see below) ensures this is fast — no manual deletion needed.
 
 ### Select-All on Focus
 
