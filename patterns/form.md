@@ -26,6 +26,8 @@ Footer:
 - "Abbrechen" navigates back (with unsaved changes guard if dirty)
 - "Speichern" submits the form, disabled while submitting
 - "Loeschen" — bottom left, below all fields and sub-lists. Destructive button (red/outline, text only, no icon). Only shown for existing records, not for new ones. Opens ConfirmDialog: "Eintrag loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden." On confirm: hard delete via Supabase, invalidate queries, toast, navigate back to list.
+
+**Button placement principle:** Save and Delete are physically separated to prevent accidental clicks. Save lives in the header (always visible, sticky), Delete lives at the bottom of the page (requires scrolling past all content — intentional friction). Delete is visually subdued (outline, red text, no icon) to avoid drawing attention.
 - Sub-lists for 1:n relations appear below the form fields (read-only list with count, "+ Neu" button, "Alle anzeigen" link)
 - Required fields show `*` after the label
 - Fields render in schema order, full width, stacked vertically

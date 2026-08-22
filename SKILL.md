@@ -46,10 +46,20 @@ description: Use when building a CRUD web app from a YAML entity schema, scaffol
    - [ ] Delete with confirmation dialog
    - [ ] Breadcrumbs generated from URL hierarchy
    - [ ] Filter/sort persisted in URL search params
-   - [ ] German UI labels, English code
+   - [ ] UI labels in German (or English if explicitly requested by user), code in English
+
+   **Visual Consistency (code-prüfbar):**
+   - [ ] Save button in header (right), Delete button in footer (left) — never in same row
+   - [ ] Delete button: `variant="outline"` + `className="text-destructive"`, text only, no icon, only for existing records
+   - [ ] Max 1 `variant="default"` (primary) button per view — all others `outline` or `ghost`
+   - [ ] Custom input components match shadcn height (`h-9`) — flag `h-10`, `h-11`, `h-12` in input/container elements
+   - [ ] All elements in a grid row same height — no mixed `h-9`/`h-12` causing baseline misalignment
+   - [ ] No `placeholder` prop on `<Input>` or `<Textarea>` — only on `<Select>` ("Bitte wählen...") and `<Combobox>` ("Suchen...")
+   - [ ] `window.confirm()` not used — use `ConfirmDialog` component (AlertDialog-based)
+   - [ ] `UnsavedChangesGuard` present in forms with editable state
 
 ## Key Conventions
-- German UI labels, English code
+- UI labels default to German. English labels are allowed when the user explicitly requests it. Code is always English.
 - European formats: dates DD.MM.YYYY, numbers with dot thousands separator, comma decimal
 - All components use CSS variables from design system tokens, no hardcoded values → See `design-system.md`
 - Filter/sort state in URL search params (shareable, preserved on back-navigation)

@@ -2,6 +2,21 @@
 
 Rules for form inputs: visual masks, smart parsing, and placeholder policy.
 
+## Input Height
+
+All interactive form elements must match the shadcn/ui default height of `h-9` (36px). This includes custom components like masked time/date inputs.
+
+| Component | Height | Class |
+|-----------|--------|-------|
+| Input | 36px | `h-9` (shadcn default) |
+| Select trigger | 36px | `h-9` (shadcn default) |
+| Custom masked input (time, date) | 36px | `h-9` on outer container |
+| Button (sm) | 36px | `h-9` (shadcn default) |
+
+Custom input containers that wrap multiple segments (e.g. `[HH]:[MM]`) must set `h-9` on the outer `div`, not on the inner segment inputs. Inner inputs should be borderless and fill the container height.
+
+**Anti-pattern:** `h-10`, `h-12` on input containers — causes baseline misalignment in grid rows.
+
 ## Global: Hide Number Spinners
 
 Browsers (especially Safari) add increment/decrement spinners to `<input type="number">`. Remove them globally in `styles.css` / `globals.css`:
