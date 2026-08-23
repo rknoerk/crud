@@ -55,6 +55,12 @@ Uses semver. The version is stored in `SKILL.md` frontmatter and displayed on fi
 
 ## Changelog
 
+### 1.2.0 (2026-08-23)
+- Added Shared Zod Schema pattern: one schema per entity, imported by client (form) and server (inputValidator)
+- Added TanStack Start Server Functions mutation pattern
+- Checklist: "Zod schema matches DB" replaced with explicit single-schema + field-addition checklist
+- Documented why duplicate schemas cause silent data loss (Zod strips unknown fields)
+
 ### 1.1.0 (2026-08-22)
 - Added Visual Consistency checklist (8 code-checkable rules: button placement, input height, primary count, placeholders, ConfirmDialog, UnsavedChangesGuard)
 - Added Input Height rule (all inputs must match shadcn `h-9`)

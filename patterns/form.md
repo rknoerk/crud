@@ -125,6 +125,32 @@ export const projektSchema = z.object({
 export type ProjektFormValues = z.infer<typeof projektSchema>;
 ```
 
+### Single Source of Truth
+
+Each entity has exactly ONE Zod schema file (`schemas/{entity}.ts`). This schema is imported by both:
+- **Client:** React Hook Form `resolver` for instant validation feedback
+- **Server:** TanStack Start Server Function `inputValidator` for security
+
+Never duplicate the schema. If a field exists in the form, it must exist in the schema. If it exists in the schema, it reaches the database.
+
+```typescript
+// schemas/projekt.ts — the single source
+export const projektSchema = z.object({ ... });
+export type ProjektFormValues = z.infer<typeof projektSchema>;
+
+// Client: form component
+import { projektSchema } from '@/schemas/projekt';
+const form = useForm({ resolver: zodResolver(projektSchema) });
+
+// Server: server function
+import { projektSchema } from '@/schemas/projekt';
+export const upsertProjekt = createServerFn({ method: "POST" })
+  .inputValidator((d) => projektSchema.parse(d))
+  .handler(async ({ data }) => { ... });
+```
+
+**Why not two schemas?** Zod's `z.object()` strips unknown fields by default. A field present in the form but missing from the server schema is silently dropped — the data never reaches the database. This is the most common cause of "field doesn't save" bugs.
+
 ## React Hook Form Integration
 
 ### Form Setup
@@ -313,6 +339,38 @@ export function FormFieldWidget({ field, control, errors }: FormFieldWidgetProps
 ```
 
 ## Mutations
+
+### TanStack Start: Server Functions
+
+When using TanStack Start, mutations should go through Server Functions instead of calling Supabase directly from the client. This adds server-side validation via the shared Zod schema.
+
+```typescript
+// Server: lib/api.functions.ts
+import { projektSchema } from '@/schemas/projekt';
+
+export const upsertProjekt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => projektSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from('projekte')
+      .upsert(data)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return row;
+  });
+
+// Client: mutation hook
+import { upsertProjekt } from '@/lib/api.functions';
+
+const mutation = useMutation({
+  mutationFn: (values: ProjektFormValues) => upsertProjekt({ data: values }),
+  onSuccess: () => { ... },
+});
+```
+
+The examples below show the direct Supabase client pattern (for projects without Server Functions). Both approaches use the same shared Zod schema.
 
 ### `useUpdateEntity`
 

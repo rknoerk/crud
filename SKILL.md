@@ -1,10 +1,10 @@
 ---
 name: crud
 description: Use when building a CRUD web app from a YAML entity schema, scaffolding Supabase tables, React components, routes, and forms for list/edit views.
-version: 1.1.0
+version: 1.2.0
 ---
 
-**CRUD Skill v1.1.0 loaded.**
+**CRUD Skill v1.2.0 loaded.**
 
 # CRUD Generator
 
@@ -36,7 +36,8 @@ version: 1.1.0
 5. **Komponenten generieren** → See `patterns/list.md`, `patterns/form.md`, `patterns/formatting.md` (value display), `patterns/input-conventions.md` (masks, parsing, field sizing), `patterns/images.md` (upload, gallery, focal point)
 6. **Qualitaets-Check** — Run through this checklist before presenting to user:
    - [ ] All routes reachable (list + edit per entity)
-   - [ ] Zod schema matches DB schema (types, required, enums)
+   - [ ] Single shared Zod schema per entity — used by both form (client) and server function (server). No duplicate schemas.
+   - [ ] When adding a field: schema file, form UI, DB column, and types file all updated
    - [ ] All `list: true` fields appear in DataTable columns
    - [ ] All `sortable` fields have sort toggle + DB index
    - [ ] All `filterable` fields have filter UI + DB index
