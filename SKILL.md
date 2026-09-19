@@ -1,10 +1,10 @@
 ---
 name: crud
 description: Use when building a CRUD web app from a YAML entity schema, scaffolding Supabase tables, React components, routes, and forms for list/edit views.
-version: 1.3.0
+version: 1.3.1
 ---
 
-**CRUD Skill v1.3.0 loaded.**
+**CRUD Skill v1.3.1 loaded.**
 
 # CRUD Generator
 
