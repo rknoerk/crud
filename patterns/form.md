@@ -6,23 +6,55 @@ Form view for creating and editing entity records. Uses React Hook Form + Zod va
 
 ```
 Header: <- Abbrechen                    [Speichern]
-Fields (in schema order):
-  Label *
-  [Input/Select/Datepicker/...]
 
-  Label
-  [Input/Select/Datepicker/...]
-
-Sub-lists (if 1:n relations exist):
-  Sub-Entity (count)              [+ Neu]
-  Entry 1
-  Entry 2
+┌─────────────────────────────────────┬──────────────────────┐
+│  Form (max-w-3xl, flex-1)           │  Side Panel (lg:w-80)│
+│                                     │  (only on lg+ screens│
+│  Section Header                     │   and if sub-lists   │
+│  [Field] [Field]  (2-col grid)      │   exist)             │
+│  [Field          ] (full width)     │                      │
+│                                     │  ┌──────────────────┐│
+│  Section Header                     │  │ Sub-Entity (3)   ││
+│  [Field] [Field]                    │  │ Row 1            ││
+│  ...                                │  │ Row 2            ││
+│                                     │  │ Row 3            ││
+│                                     │  └──────────────────┘│
+└─────────────────────────────────────┴──────────────────────┘
 
 Footer:
   [Loeschen]
 ```
 
-- Header is sticky at top
+### Responsive behavior
+- **Mobile/Tablet (<1024px):** Single column — form full width, side panel below form
+- **Desktop (>=1024px):** 2-panel — form left (`flex-1 max-w-3xl`), side panel right (`lg:w-80 xl:w-96`)
+- Side panel only rendered when sub-lists (1:n relations) exist and record is not new
+
+### Width rationale
+- `max-w-3xl` (768px) for the form — wide enough for 2-col field grids, not so wide that labels and inputs become disconnected
+- NOT `max-w-2xl` (448px) — too narrow for data-heavy forms, wastes space on wide screens
+- Side panel is fixed-width (`w-80`/`w-96`) — card-styled (`rounded-lg border bg-card p-4`), sticky on scroll (`sticky top-6` on inner card)
+- On mobile, side panel gets `max-w-sm` to prevent it from being wider than its desktop width
+
+```tsx
+<div className="flex flex-col gap-6 lg:flex-row lg:gap-10">
+  <Form>
+    <form className="grid max-w-3xl flex-1 gap-6">
+      {/* grouped fields */}
+    </form>
+  </Form>
+
+  {!isNew && (
+    <aside className="w-full max-w-sm shrink-0 lg:w-80 xl:w-96">
+      <div className="sticky top-6 rounded-lg border bg-card p-4">
+        {/* sub-list content */}
+      </div>
+    </aside>
+  )}
+</div>
+```
+
+- Header is sticky at top (`sticky top-0 z-10 bg-background`). Use negative margins + padding to extend to page edges: `-mx-6 -mt-6 px-6 py-4`
 - "Abbrechen" navigates back (with unsaved changes guard if dirty)
 - "Speichern" submits the form, disabled while submitting
 - "Loeschen" — bottom left, below all fields and sub-lists. Destructive button (red/outline, text only, no icon). Only shown for existing records, not for new ones. Opens ConfirmDialog: "Eintrag loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden." On confirm: hard delete via Supabase, invalidate queries, toast, navigate back to list.
@@ -30,8 +62,85 @@ Footer:
 **Button placement principle:** Save and Delete are physically separated to prevent accidental clicks. Save lives in the header (always visible, sticky), Delete lives at the bottom of the page (requires scrolling past all content — intentional friction). Delete is visually subdued (outline, red text, no icon) to avoid drawing attention.
 - Sub-lists for 1:n relations appear below the form fields (read-only list with count, "+ Neu" button, "Alle anzeigen" link)
 - Required fields show `*` after the label
-- Fields render in schema order, full width, stacked vertically
+- Fields are **auto-grouped** by the rules below — never blindly stacked vertically
 - Validation errors appear inline below each field in red
+
+## Field Auto-Grouping
+
+**When generating a form, analyze field names, types, and label lengths to produce a grouped layout. Do NOT ask the user — make sensible assumptions. The user can adjust afterwards.**
+
+### Rules (apply in order)
+
+1. **Section headers** (`<h2>`) — group semantically related fields. Look for shared prefixes or domain clusters:
+   - Name/title fields → "Grunddaten"
+   - Technical specs → "Technische Daten"  
+   - Boolean flags → named group (e.g. "Qualifying", "Kategorien")
+   - Free text / notes → "Texte" or no header if only 1-2 fields
+   - Use judgment — 3+ related fields warrant a section, 1-2 don't
+
+2. **Section cards** — each section gets its own card container:
+   ```tsx
+   <div className="rounded-lg border bg-card p-6 grid gap-4">
+     <h2 className="text-base font-semibold">Section Name</h2>
+     {/* fields */}
+   </div>
+   ```
+   This creates visual anchors, improves scannability, and balances with the side panel (also a card). Consistent with Supabase, Vercel, Linear dashboard patterns.
+
+3. **2-column grid** (`grid grid-cols-2 gap-4`) — pair fields on the same row when ALL of these apply:
+   - Both are short-input types: `number`, `enum/select`, short `text` (label ≤ ~25 chars)
+   - They are semantically related or at least not unrelated
+   - Their labels are similar length (no extreme mismatch causing visual imbalance)
+   - Examples: "Bildformat + Bildfrequenz", "FSK + Website"
+   
+   **Important:** Placing a field in a 2- or 3-col grid does NOT override its `max-width`. A year field stays narrow inside the grid cell — it does not stretch to fill the cell. See `input-conventions.md` Field Sizing for per-type widths.
+
+3b. **Compact row** (`flex flex-wrap gap-x-6 gap-y-4`) — use when 3+ consecutive fields are ALL compact:
+   - Each field's input is narrow: `year`, `duration`, `time`, short `number` (≤4 digits), or short `enum` (longest option ≤ ~12 chars)
+   - Each field's label is short (≤ ~15 chars)
+   - Fields are in the same semantic section
+   - Examples: "Jahrgang + Längentyp + Gattung", "Laufzeit + Produktionsjahr + Farbe"
+   
+   **Why `flex` not `grid-cols-3`:** CSS Grid distributes columns equally across the full width, creating ugly gaps when fields have very different widths (a 4ch year field next to a 160px select). Flex lets each field take only its natural width and cluster left-aligned.
+   
+   **Width strategy for flex children:**
+   - Structured inputs (year, time, duration): use explicit `w-[calc(Xch+padding)]` on the `<Input>` — the FormItem shrinks to fit
+   - Selects: set `w-40` to `w-48` on the `<FormItem>` depending on longest option label
+   - Free text: don't put in compact rows — use full-width or 2-col grid
+   
+   **Evaluation heuristic:** Look at each group of 2-4 consecutive short fields. Score each field:
+   - `year`, `time`, `duration`, short `number`: score 1 (very compact)
+   - `enum` with ≤3 options and longest option ≤12 chars: score 1
+   - `enum` with 4+ options or longest option >12 chars: score 2 (needs more space)
+   - short `text` with label ≤15 chars: score 2
+   - anything else: score 3 (not suitable for compact row)
+   
+   If 3 consecutive fields all score ≤2 and at least 2 score 1 → compact row (`flex`).
+   If only 2 fields score ≤2 → use `grid-cols-2`.
+
+4. **Full width** — use for:
+   - `textarea` fields (always)
+   - Title/name fields (primary identifier)
+   - `url` fields with long labels
+   - Any field where the input needs horizontal space
+
+5. **Boolean checkbox grids** — multiple booleans in the same group:
+   - Use `flex flex-wrap gap-6` (for 3-5 items) or `grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-8 gap-y-3` (for 6+ items)
+   - Compact inline layout: `<Checkbox /> <Label />` side by side
+
+6. **Fieldset with border** — use `<fieldset className="grid gap-4 rounded-lg border p-4"><legend>` for tightly coupled field pairs (e.g. "Geschätzte Gebühr + Tatsächliche Gebühr")
+
+### Decision heuristic
+
+```
+For each field:
+  if textarea → full width, own row
+  if title/name → full width, own row  
+  if boolean and next field is also boolean → collect into checkbox grid
+  if 3 consecutive short fields (score ≤2, at least 2 score 1) → compact flex row
+  if short field and next field is also short and related → pair in 2-col row
+  else → full width, own row
+```
 
 ## Widget Mapping
 
@@ -41,6 +150,9 @@ Footer:
 | `textarea` | `<Textarea />` | Auto-grows, preserves line breaks |
 | `enum` | `<Select>` | Options from `values` array |
 | `number` | `<Input type="text" inputMode="decimal" />` | European formatting (comma decimal), parsed on blur |
+| `year` | `<Input type="text" inputMode="numeric" />` | 4-digit, max-w constrained, no spinners. See `input-conventions.md` |
+| `time` | `<MaskedTimeInput />` | HH:MM segment input with smart parsing |
+| `duration` | `<DurationInput />` | MM:SS segment input for runtimes/durations. See `input-conventions.md` |
 | `date` | `<DatePicker />` | DD.MM.YYYY format |
 | `relation` | `<Combobox />` | Searchable, loads options from target table |
 | `boolean` | `<Switch />` | With inline label |

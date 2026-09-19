@@ -1,10 +1,10 @@
 ---
 name: crud
 description: Use when building a CRUD web app from a YAML entity schema, scaffolding Supabase tables, React components, routes, and forms for list/edit views.
-version: 1.2.0
+version: 1.3.0
 ---
 
-**CRUD Skill v1.2.0 loaded.**
+**CRUD Skill v1.3.0 loaded.**
 
 # CRUD Generator
 
@@ -34,7 +34,9 @@ version: 1.2.0
 3. **TypeScript-Typen generieren** → See `patterns/form.md` (Zod section)
 4. **Routes anlegen** → See `patterns/navigation.md` (routing, breadcrumbs, URL params, guards), `patterns/navigation-layout.md` (sidebar, tabs, AppShell)
 5. **Komponenten generieren** → See `patterns/list.md`, `patterns/form.md`, `patterns/formatting.md` (value display), `patterns/input-conventions.md` (masks, parsing, field sizing), `patterns/images.md` (upload, gallery, focal point)
-6. **Qualitaets-Check** — Run through this checklist before presenting to user:
+6. **Qualitaets-Check** — **HALT: Do NOT present code to user until EVERY item below is verified. Go through each item, check the generated code, and fix violations before proceeding. This is not optional.**
+
+   **Functional completeness:**
    - [ ] All routes reachable (list + edit per entity)
    - [ ] Single shared Zod schema per entity — used by both form (client) and server function (server). No duplicate schemas.
    - [ ] When adding a field: schema file, form UI, DB column, and types file all updated
@@ -46,11 +48,37 @@ version: 1.2.0
    - [ ] European formats applied (DD.MM.YYYY, dot thousands, comma decimal)
    - [ ] Design system tokens used, no hardcoded colors/sizes
    - [ ] Empty states and error toasts present
-   - [ ] Unsaved changes guard on edit form
    - [ ] Delete with confirmation dialog
    - [ ] Breadcrumbs generated from URL hierarchy
    - [ ] Filter/sort persisted in URL search params
    - [ ] UI labels in German (or English if explicitly requested by user), code in English
+
+   **Unsaved changes guard (MANDATORY — grep for `window.confirm` to catch violations):**
+   - [ ] `UnsavedChangesGuard` component present in every form with editable state
+   - [ ] `window.confirm()` NEVER used anywhere — always use `UnsavedChangesGuard` which uses `beforeunload` + router blocker
+   - [ ] The `handleCancel` function must NOT contain `window.confirm` — instead rely on `UnsavedChangesGuard` to intercept navigation
+
+   Correct pattern:
+   ```tsx
+   // UnsavedChangesGuard handles both browser close AND in-app navigation
+   <UnsavedChangesGuard isDirty={form.formState.isDirty} />
+
+   // handleCancel just navigates — the guard intercepts if dirty
+   function handleCancel() {
+     navigate({ to: '/list' })
+   }
+   ```
+
+   Wrong pattern (NEVER do this):
+   ```tsx
+   // ❌ window.confirm is ugly, inconsistent, and blocks the thread
+   function handleCancel() {
+     if (form.formState.isDirty) {
+       if (!window.confirm('Ungespeicherte Änderungen...')) return
+     }
+     navigate({ to: '/list' })
+   }
+   ```
 
    **Visual Consistency (code-prüfbar):**
    - [ ] Save button in header (right), Delete button in footer (left) — never in same row
@@ -59,8 +87,7 @@ version: 1.2.0
    - [ ] Custom input components match shadcn height (`h-9`) — flag `h-10`, `h-11`, `h-12` in input/container elements
    - [ ] All elements in a grid row same height — no mixed `h-9`/`h-12` causing baseline misalignment
    - [ ] No `placeholder` prop on `<Input>` or `<Textarea>` — only on `<Select>` ("Bitte wählen...") and `<Combobox>` ("Suchen...")
-   - [ ] `window.confirm()` not used — use `ConfirmDialog` component (AlertDialog-based)
-   - [ ] `UnsavedChangesGuard` present in forms with editable state
+   - [ ] `window.confirm()` not used — see "Unsaved changes guard" section above
 
 ## Key Conventions
 - UI labels default to German. English labels are allowed when the user explicitly requests it. Code is always English.

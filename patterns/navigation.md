@@ -4,43 +4,91 @@
 
 ```
 /entity                              -> List view
-/entity/:id                          -> Form view (edit)
-/entity/:id/sub-entity               -> Sub-list (hierarchical 1:n)
-/entity/:id/sub-entity/:subId        -> Sub-form (edit)
+/entity/$id                          -> Form view (edit)
+/entity/$id/sub-entity               -> Sub-list (hierarchical 1:n)
+/entity/$id/sub-entity/$subId        -> Sub-form (edit)
 ```
 
 **No separate detail/read-only view.** Clicking a row in the list opens the edit form directly. This eliminates an unnecessary click and a second view to maintain per entity.
 
-Route definition example (React Router v6):
+## TanStack Start File-Based Routing (Default)
+
+TanStack Start uses file-based routing under `src/routes/`. File names map to URL paths.
+
+### File Naming Convention
+
+**IMPORTANT: Use the `_` (pathless layout) prefix** to make `$id` routes standalone siblings of the list route, NOT children:
+
+```
+src/routes/
+  __root.tsx              -> Root layout (sidebar, Outlet)
+  index.tsx               -> /
+  projekte.tsx            -> /projekte          (list)
+  projekte_.$id.tsx       -> /projekte/$id      (form — standalone, not nested under projekte.tsx)
+  projekte_.$id.szenen.tsx         -> /projekte/$id/szenen          (sub-list)
+  projekte_.$id.szenen.$szeneId.tsx -> /projekte/$id/szenen/$szeneId (sub-form)
+```
+
+The `_` after `projekte` in `projekte_.$id.tsx` means: "share the `/projekte` URL prefix but do NOT render inside `projekte.tsx`". Without `_`, TanStack Router treats `projekte.$id.tsx` as a child of `projekte.tsx` and requires `<Outlet />` in the parent — which breaks the list/form switching pattern.
+
+**Rule: Always use `entity_.$id.tsx` (with underscore) unless you specifically want a master-detail layout with `<Outlet />` in the list.**
+
+### Route Definition
 
 ```tsx
-// routes.tsx
-import { createBrowserRouter } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
+// src/routes/projekte.tsx (list)
+import { createFileRoute } from '@tanstack/react-router'
 
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <AppLayout />,
-    children: [
-      {
-        path: "projekte",
-        element: <ProjekteLayout />,  // desktop: master-detail via <Outlet />
-        children: [
-          { index: true, element: <ProjektList /> },
-          { path: ":id", element: <ProjektForm /> },
-          {
-            path: ":id/szenen",
-            children: [
-              { index: true, element: <SzeneList /> },
-              { path: ":szeneId", element: <SzeneForm /> },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-]);
+export const Route = createFileRoute('/projekte')({
+  component: ProjekteList,
+})
+
+function ProjekteList() {
+  // ...
+}
+```
+
+```tsx
+// src/routes/projekte_.$id.tsx (form — note the path does NOT include the underscore)
+import { createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/projekte/$id')({
+  component: ProjektForm,
+})
+
+function ProjektForm() {
+  const { id } = Route.useParams()
+  // ...
+}
+```
+
+### Navigation
+
+```tsx
+import { useNavigate, Link } from '@tanstack/react-router'
+
+// Programmatic navigation
+const navigate = useNavigate()
+navigate({ to: '/projekte/$id', params: { id: projekt.id } })
+
+// Link component
+<Link to="/projekte/$id" params={{ id: projekt.id }}>
+  {projekt.titel}
+</Link>
+
+// Navigate back to list
+navigate({ to: '/projekte' })
+```
+
+### Getting Route Params
+
+```tsx
+// Inside a route component — use the Route object
+const { id } = Route.useParams()
+
+// Or with the generic hook
+import { useParams } from '@tanstack/react-router'
+const { id } = useParams({ from: '/projekte/$id' })
 ```
 
 ## URL Hierarchy = Navigation Stack (Breadcrumbs)
@@ -88,7 +136,7 @@ export const entityRegistry: Record<string, EntityMeta> = {
 
 ```tsx
 // components/Breadcrumbs.tsx
-import { Link, useMatches, useParams } from "react-router-dom";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { entityRegistry } from "@/lib/entity-registry";
@@ -115,8 +163,8 @@ function useRecordTitle(table: string, id: string | undefined, titleField: strin
 }
 
 export function Breadcrumbs() {
-  const params = useParams();
-  const pathname = location.pathname;
+  const routerState = useRouterState();
+  const pathname = routerState.location.pathname;
 
   // Split path into segments, build crumbs from entity registry
   const segments = pathname.split("/").filter(Boolean);
@@ -129,13 +177,10 @@ export function Breadcrumbs() {
 
     const entity = entityRegistry[segment];
     if (entity) {
-      // This is an entity list segment
       crumbs.push({ label: entity.label.plural, href });
-    } else if (segment === "edit") {
-      crumbs.push({ label: "Bearbeiten", href });
     } else {
-      // This is an ID segment -> resolved to title via query (see RecordCrumb)
-      crumbs.push({ label: segment, href }); // placeholder, replaced by RecordCrumb
+      // ID segment -> resolved to title via query (see RecordCrumb)
+      crumbs.push({ label: segment, href });
     }
   }
 
@@ -170,7 +215,7 @@ function RecordCrumb({ segments, index, fallback }: {
   const segment = segments[index];
   const entity = entityRegistry[segment];
 
-  if (entity || segment === "edit") {
+  if (entity) {
     return <>{fallback}</>;
   }
 
@@ -197,7 +242,7 @@ Format: `/projekte?status=aktiv&sort=-startdatum`
 
 ```tsx
 // hooks/useUrlParams.ts
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useCallback } from "react";
 
 export interface SortParam {
@@ -217,18 +262,16 @@ export interface UrlParamsResult {
 }
 
 export function useUrlParams(): UrlParamsResult {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const routerState = useRouterState();
+  const navigate = useNavigate();
+  const searchParams = routerState.location.search as Record<string, string>;
 
   const queryParams = useMemo(() => {
-    const obj: Record<string, string> = {};
-    searchParams.forEach((value, key) => {
-      obj[key] = value;
-    });
-    return obj;
+    return { ...searchParams };
   }, [searchParams]);
 
   const sort = useMemo((): SortParam | null => {
-    const raw = searchParams.get("sort");
+    const raw = searchParams.sort;
     if (!raw) return null;
     if (raw.startsWith("-")) {
       return { field: raw.slice(1), direction: "desc" };
@@ -236,64 +279,73 @@ export function useUrlParams(): UrlParamsResult {
     return { field: raw, direction: "asc" };
   }, [searchParams]);
 
-  const search = searchParams.get("q") ?? "";
+  const search = searchParams.q ?? "";
 
   const filters = useMemo(() => {
     const f: Record<string, string> = {};
-    searchParams.forEach((value, key) => {
+    for (const [key, value] of Object.entries(searchParams)) {
       if (key !== "sort" && key !== "q") {
         f[key] = value;
       }
-    });
+    }
     return f;
   }, [searchParams]);
 
+  const updateSearch = useCallback(
+    (updater: (prev: Record<string, string>) => Record<string, string>) => {
+      navigate({
+        search: (prev: Record<string, string>) => updater(prev),
+        replace: true,
+      });
+    },
+    [navigate],
+  );
+
   const setFilter = useCallback(
     (key: string, value: string | null) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
+      updateSearch((prev) => {
+        const next = { ...prev };
         if (value === null) {
-          next.delete(key);
+          delete next[key];
         } else {
-          next.set(key, value);
+          next[key] = value;
         }
         return next;
-      }, { replace: true });
+      });
     },
-    [setSearchParams],
+    [updateSearch],
   );
 
   const setSort = useCallback(
     (field: string) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        const current = next.get("sort");
-        if (current === field) {
-          next.set("sort", `-${field}`); // toggle to desc
-        } else if (current === `-${field}`) {
-          next.delete("sort"); // toggle off
+      updateSearch((prev) => {
+        const next = { ...prev };
+        if (prev.sort === field) {
+          next.sort = `-${field}`; // toggle to desc
+        } else if (prev.sort === `-${field}`) {
+          delete next.sort; // toggle off
         } else {
-          next.set("sort", field); // new field, asc
+          next.sort = field; // new field, asc
         }
         return next;
-      }, { replace: true });
+      });
     },
-    [setSearchParams],
+    [updateSearch],
   );
 
   const setSearch = useCallback(
     (value: string) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
+      updateSearch((prev) => {
+        const next = { ...prev };
         if (value) {
-          next.set("q", value);
+          next.q = value;
         } else {
-          next.delete("q");
+          delete next.q;
         }
         return next;
-      }, { replace: true });
+      });
     },
-    [setSearchParams],
+    [updateSearch],
   );
 
   return { filters, sort, search, setFilter, setSort, setSearch, queryParams };
@@ -313,44 +365,45 @@ const { data } = useQuery({
 
 ## Cross-Reference Navigation (Querverweise)
 
-When navigating to a related record from a detail view (e.g., clicking a Kunde link from a Projekt), pass the origin path so the back button returns to the referrer, not the canonical parent.
+When navigating to a related record from a detail view (e.g., clicking a Kunde link from a Projekt), pass search params so the back button can return to the referrer.
 
 ```tsx
 // Navigating to a cross-reference
-navigate(`/kontakte/${kundeId}`, {
-  state: { from: location.pathname },
-});
+navigate({
+  to: '/kontakte/$id',
+  params: { id: kundeId },
+  search: { from: location.pathname },
+})
 ```
-
-Back navigation: if `state.from` exists, go there. Otherwise, go one URL segment up (canonical parent).
 
 ### useNavigateBack Hook
 
 ```tsx
 // hooks/useNavigateBack.ts
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useCallback } from "react";
 
 /**
  * Returns a navigate-back function that:
- * 1. Uses location.state.from if set (cross-reference return)
+ * 1. Uses search.from if set (cross-reference return)
  * 2. Falls back to the canonical parent route (one segment up)
  */
 export function useNavigateBack() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerState = useRouterState();
+  const pathname = routerState.location.pathname;
+  const search = routerState.location.search as Record<string, string>;
 
   const goBack = useCallback(() => {
-    const from = (location.state as { from?: string })?.from;
-    if (from) {
-      navigate(from);
+    if (search.from) {
+      navigate({ to: search.from });
       return;
     }
 
     // Canonical parent: strip last path segment
-    const parentPath = location.pathname.replace(/\/[^/]+\/?$/, "") || "/";
-    navigate(parentPath);
-  }, [navigate, location]);
+    const parentPath = pathname.replace(/\/[^/]+\/?$/, "") || "/";
+    navigate({ to: parentPath });
+  }, [navigate, pathname, search]);
 
   return goBack;
 }
@@ -367,139 +420,15 @@ const goBack = useNavigateBack();
 </Button>
 ```
 
-## Responsive Master-Detail
+## Unsaved Changes Guard
 
-### Desktop (>=1024px): Side-by-Side
+TanStack Router has `useBlocker` with built-in `enableBeforeUnload`. Use `withResolver: true` to show an AlertDialog instead of `window.confirm`.
 
-List and detail render simultaneously via nested route with `<Outlet />`. The list stays mounted, so scroll position is preserved automatically.
-
-```tsx
-// components/ProjekteLayout.tsx
-import { Outlet, useParams } from "react-router-dom";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-
-export function ProjekteLayout() {
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const params = useParams();
-  const hasSelection = !!params.id;
-
-  if (!isDesktop) {
-    // Mobile: render either list OR detail, not both
-    return <Outlet />;
-  }
-
-  return (
-    <div className="flex h-full">
-      <div className="w-[400px] shrink-0 border-r overflow-y-auto">
-        <ProjektList />
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {hasSelection ? <Outlet /> : <EmptySelection entity="Projekt" />}
-      </div>
-    </div>
-  );
-}
-```
-
-### Mobile (<1024px): Full-Page Transitions
-
-List and detail are full-page views. Scroll position is saved to `sessionStorage` keyed by route path, and restored on return.
-
-```tsx
-// hooks/useScrollRestore.ts
-import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
-
-const SCROLL_KEY_PREFIX = "scroll:";
-
-export function useScrollRestore(containerRef: React.RefObject<HTMLElement | null>) {
-  const location = useLocation();
-  const key = `${SCROLL_KEY_PREFIX}${location.pathname}`;
-
-  // Restore scroll position on mount
-  useEffect(() => {
-    const saved = sessionStorage.getItem(key);
-    if (saved && containerRef.current) {
-      containerRef.current.scrollTop = parseInt(saved, 10);
-    }
-  }, [key, containerRef]);
-
-  // Save scroll position on unmount
-  useEffect(() => {
-    const el = containerRef.current;
-    return () => {
-      if (el) {
-        sessionStorage.setItem(key, String(el.scrollTop));
-      }
-    };
-  }, [key, containerRef]);
-}
-```
-
-## Form Navigation
-
-### Edit Flow
-
-"Bearbeiten" button on detail view navigates to the edit route:
-
-```tsx
-<Button onClick={() => navigate(`/projekte/${id}/edit`)}>
-  Bearbeiten
-</Button>
-```
-
-### Create Flow
-
-"Neuer Eintrag" inserts a record with defaults via Supabase, then navigates to edit:
-
-```tsx
-const createAndEdit = useMutation({
-  mutationFn: async () => {
-    const { data, error } = await supabase
-      .from("projekte")
-      .insert({ status: "entwurf" })  // schema defaults
-      .select("id")
-      .single();
-    if (error) throw error;
-    return data;
-  },
-  onSuccess: (data) => {
-    navigate(`/projekte/${data.id}/edit`, {
-      state: { from: location.pathname },
-    });
-  },
-});
-```
-
-### Save Flow
-
-Save the form, show a toast, navigate back to detail:
-
-```tsx
-const updateMutation = useMutation({
-  mutationFn: async (values: ProjektFormValues) => {
-    const { error } = await supabase
-      .from("projekte")
-      .update(values)
-      .eq("id", id);
-    if (error) throw error;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["projekte", id] });
-    toast({ title: "Gespeichert", description: "Aenderungen wurden gespeichert." });
-    navigate(`/projekte/${id}`);
-  },
-});
-```
-
-### Cancel + Unsaved Changes Guard
-
-Cancel checks for dirty state before navigating away. A route guard covers both in-app navigation and browser back/close.
+**NEVER use `window.confirm()` for unsaved changes.** Always use this component.
 
 ```tsx
 // components/UnsavedChangesGuard.tsx
-import { useEffect } from "react";
-import { useBlocker } from "react-router-dom";
+import { useBlocker } from '@tanstack/react-router'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -509,80 +438,65 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog'
 
 interface Props {
-  isDirty: boolean;
+  isDirty: boolean
 }
 
 export function UnsavedChangesGuard({ isDirty }: Props) {
-  // Block in-app navigation via React Router
-  const blocker = useBlocker(isDirty);
-
-  // Block browser close / refresh
-  useEffect(() => {
-    if (!isDirty) return;
-
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // Legacy browsers need returnValue
-      e.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
-
-  if (blocker.state !== "blocked") return null;
+  const { proceed, reset, status } = useBlocker({
+    shouldBlockFn: () => isDirty,
+    enableBeforeUnload: isDirty,
+    withResolver: true,
+  })
 
   return (
-    <AlertDialog open>
+    <AlertDialog open={status === 'blocked'}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Ungespeicherte Aenderungen</AlertDialogTitle>
+          <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
           <AlertDialogDescription>
-            Es gibt ungespeicherte Aenderungen. Moechtest du die Seite wirklich verlassen?
+            Es gibt ungespeicherte Änderungen. Trotzdem verlassen?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => blocker.reset()}>
-            Abbrechen
-          </AlertDialogCancel>
-          <AlertDialogAction onClick={() => blocker.proceed()}>
-            Verwerfen
-          </AlertDialogAction>
+          <AlertDialogCancel onClick={reset}>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={proceed}>Verlassen</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }
 ```
 
-Usage in a form component:
+This handles both:
+- **Browser close/refresh:** native `beforeunload` dialog
+- **In-app navigation:** styled AlertDialog via `useBlocker` resolver
+
+Cancel button — just navigate, the guard intercepts if dirty:
 
 ```tsx
-export function ProjektForm() {
-  const { id } = useParams();
-  const goBack = useNavigateBack();
-  const form = useForm<ProjektFormValues>({ resolver: zodResolver(projektSchema) });
-  const { isDirty } = form.formState;
-
-  return (
-    <>
-      <UnsavedChangesGuard isDirty={isDirty} />
-      <form onSubmit={form.handleSubmit(onSave)}>
-        {/* fields */}
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={goBack}>
-            Abbrechen
-          </Button>
-          <Button type="submit">Speichern</Button>
-        </div>
-      </form>
-    </>
-  );
+function handleCancel() {
+  navigate({ to: '/list' })
 }
+
+<Button variant="ghost" onClick={handleCancel}>
+  Abbrechen
+</Button>
 ```
+
+## Legacy: React Router v6/v7
+
+For projects using React Router (pre-May 2026 Lovable projects), use the standard React Router APIs:
+
+- `createBrowserRouter` instead of file-based routing
+- `useSearchParams` instead of `useRouterState().location.search`
+- `useParams` from `react-router-dom`
+- `useNavigate` from `react-router-dom`
+- `useBlocker` for unsaved changes guard (available in React Router v6.4+)
+
+The component logic (React Query, Supabase, forms) stays the same — only the routing layer differs.
 
 ---
 

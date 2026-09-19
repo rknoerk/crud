@@ -16,6 +16,22 @@ Table:  Spalte1 v  Spalte2  Spalte3  Spalte4
 - **Search input** rendered only if any field has `searchable: true`
 - **Row click** navigates to `/:id` (detail view)
 
+### Sticky Header, Filters, and Table Header
+
+List pages have three sticky layers that stay visible when scrolling:
+
+1. **Page header** (title + "Neu" button): `sticky top-0 z-10 -mx-6 -mt-6 bg-background px-6 py-4`
+2. **Filter bar**: `sticky top-14 z-10 -mx-6 bg-background px-6 pb-4` (sits below the header)
+3. **Table header** (`<TableHeader>`): `sticky top-[7.5rem] z-10 bg-background` (sits below filter bar)
+
+The `top-[7.5rem]` value accounts for header (~56px) + filter bar (~64px). Adjust if filter bar height changes.
+
+**Prerequisites:**
+- The root layout must use `h-screen` (not `min-h-screen`) with `overflow-y-auto` on the content wrapper, so that the content area becomes a scroll container for sticky positioning to work.
+- The shadcn `<Table>` wrapper div must NOT have `overflow-auto` — remove it from `components/ui/table.tsx`. A nested `overflow-auto` container breaks `sticky` because the thead sticks to the inner div, not the content wrapper.
+
+For full-screen matrix views (like Vorauswahl), use a different approach: the page itself becomes `flex h-full flex-col overflow-hidden`, with header/filter `shrink-0` and the table area as `min-h-0 flex-1 overflow-auto`.
+
 ## Data Loading
 
 - Load all data initially (no pagination)
